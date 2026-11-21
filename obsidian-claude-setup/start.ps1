@@ -2,7 +2,12 @@
 #   irm https://raw.githubusercontent.com/puruni22-star/Exposition---Topic/claude/elegant-cerf-fs8ajm/obsidian-claude-setup/start.ps1|iex
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$base = 'https://raw.githubusercontent.com/puruni22-star/Exposition---Topic/claude/elegant-cerf-fs8ajm/obsidian-claude-setup'
+$ref = 'claude/elegant-cerf-fs8ajm'
+try {
+  $sha = Invoke-RestMethod -UseBasicParsing -Headers @{ Accept = 'application/vnd.github.sha' } -Uri 'https://api.github.com/repos/puruni22-star/Exposition---Topic/commits/claude/elegant-cerf-fs8ajm'
+  if ($sha -match '^[0-9a-f]{40}$') { $ref = $sha }
+} catch {}
+$base = 'https://raw.githubusercontent.com/puruni22-star/Exposition---Topic/' + $ref + '/obsidian-claude-setup'
 $dir = Join-Path $env:TEMP ('obsidian-claude-setup-' + (Get-Date -Format 'yyyyMMddHHmmss'))
 $nocache = '?nocache=' + [Guid]::NewGuid().ToString('N')
 $utf8Bom = New-Object System.Text.UTF8Encoding($true)
