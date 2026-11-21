@@ -34,9 +34,37 @@ function RefreshPath {
               (Join-Path $env:USERPROFILE ".local\bin")
 }
 
-Say "`n=== 옵시디언 + Claude 연결 자동 설치 ===`n" Cyan
+Say "`n=== 옵시디언 + Claude 연결 자동 설치 ===" Cyan
+if ($env:SETUP_REF) { Say "(설치 파일 버전 $env:SETUP_REF)" DarkGray }
+Say ""
+
+# 볼트 안의 설정 폴더(.obsidian, 또는 이름을 바꾼 설정 폴더)를 찾는다.
+function FindConfigDir($vault) {
+  if (-not ($vault -and (Test-Path -LiteralPath $vault))) { return $null }
+  $def = Join-Path $vault ".obsidian"
+  if (Test-Path -LiteralPath $def) { return $def }
+  $alt = Get-ChildItem -LiteralPath $vault -Directory -Force -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name.StartsWith(".") -and ((Test-Path -LiteralPath (Join-Path $_.FullName "app.json")) -or (Test-Path -LiteralPath (Join-Path $_.FullName "workspace.json"))) } |
+    Select-Object -First 1
+  if ($alt) { return $alt.FullName }
+  return $null
+}
 
 # ---------------------------------------------------------------- 1. 볼트 찾기
+if (-not $VaultPath -and $env:OBSIDIAN_VAULT) { $VaultPath = $env:OBSIDIAN_VAULT }
+if ($VaultPath) {
+  $VaultPath = $VaultPath.Trim().Trim('"').TrimEnd('\')
+  if (-not (FindConfigDir $VaultPath)) {
+    Say "지정한 볼트에서 옵시디언 설정 폴더를 찾지 못했습니다: $VaultPath" Red
+    if (Test-Path -LiteralPath $VaultPath) {
+      Say "그 폴더 안의 항목:" Yellow
+      Get-ChildItem -LiteralPath $VaultPath -Force | Select-Object -First 30 | ForEach-Object { Say "   $($_.Name)" }
+    } else {
+      Say "그 경로의 폴더가 없습니다." Yellow
+    }
+    exit 1
+  }
+}
 $candidates = @()
 if ($VaultPath) { $candidates += $VaultPath }
 # 바탕화면(OneDrive 바탕화면 포함)에서 이름이 "My Note"인 볼트를 직접 찾는다.
@@ -59,13 +87,13 @@ if ($obsJson -and $obsJson.vaults) {
 }
 $VaultPath = $null
 foreach ($c in $candidates) {
-  if ($c -and (Test-Path -LiteralPath (Join-Path $c ".obsidian"))) { $VaultPath = $c; break }
+  if ($c -and (FindConfigDir $c)) { $VaultPath = $c; break }
 }
 if (-not $VaultPath) {
   Say "옵시디언 볼트를 찾지 못했습니다. 옵시디언에서 볼트를 한 번 연 뒤 다시 실행해 주세요." Red
   exit 1
 }
-$ObsDir = Join-Path $VaultPath ".obsidian"
+$ObsDir = FindConfigDir $VaultPath
 Say "[1/7] 볼트 찾음: $VaultPath" Green
 
 # ---------------------------------------------------------------- 2. 옵시디언 닫기 + 백업

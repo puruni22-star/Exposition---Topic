@@ -8,6 +8,7 @@ try {
   if ($sha -match '^[0-9a-f]{40}$') { $ref = $sha }
 } catch {}
 $base = 'https://raw.githubusercontent.com/puruni22-star/Exposition---Topic/' + $ref + '/obsidian-claude-setup'
+$env:SETUP_REF = $ref.Substring(0, [Math]::Min(7, $ref.Length))
 $dir = Join-Path $env:TEMP ('obsidian-claude-setup-' + (Get-Date -Format 'yyyyMMddHHmmss'))
 $nocache = '?nocache=' + [Guid]::NewGuid().ToString('N')
 $utf8Bom = New-Object System.Text.UTF8Encoding($true)
