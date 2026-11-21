@@ -1,0 +1,9 @@
+{
+  "id": "jiseok-claude-layout",
+  "name": "Claude 작업 레이아웃",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "시작할 때 왼쪽 파일 탐색기·오른쪽 백링크·아래 터미널 레이아웃을 자동으로 열고, 볼트 폴더에서 Claude Code를 실행합니다.",
+  "author": "Jiseok Church",
+  "isDesktopOnly": true
+}
