@@ -1,27 +1,20 @@
-﻿<#
-  옵시디언 + Claude 연결 설치 스크립트 (Windows PowerShell 5.1 이상)
+﻿﻿<#
+  옵시디언 + Claude 연결 자동 설치 (Windows PowerShell 5.1 이상)
+  아무것도 묻지 않고 끝까지 진행합니다.
 
-  하는 일
-    1) .obsidian 설정 파일 백업
-    2) 코어 플러그인 켜기 : 파일 탐색기, 검색, 북마크, 백링크, 나가는 링크, 태그, 개요
-    3) 커뮤니티 플러그인 설치·켜기
-         - Terminal              (아래쪽 cmd 터미널)
-         - Local REST API        (Claude 데스크톱 앱이 볼트에 접근하는 통로, 127.0.0.1:27124)
-         - Claude 작업 레이아웃   (이 폴더의 plugin\jiseok-claude-layout)
-    4) 볼트에 CLAUDE.md, .claude\settings.json 복사 (이미 있으면 건드리지 않음)
-    5) Claude Code(CLI) 설치 여부 확인
-    6) Claude 데스크톱 앱에 obsidian MCP 서버 등록 (Local REST API 키가 있을 때)
-
-  사용법
-    옵시디언을 완전히 끈 다음 install.bat 을 더블클릭하거나:
-      powershell -ExecutionPolicy Bypass -File install.ps1
-      powershell -ExecutionPolicy Bypass -File install.ps1 -VaultPath "D:\다른 볼트"
+    1) 볼트 자동 찾기 (바탕화면\옵시디언\My Note → 옵시디언에 등록된 볼트)
+    2) 옵시디언 닫기, .obsidian 설정 백업
+    3) 코어 플러그인 켜기 : 파일 탐색기, 검색, 북마크, 백링크, 나가는 링크, 태그, 개요
+    4) 커뮤니티 플러그인 설치·켜기 : Terminal / Local REST API / Claude 작업 레이아웃
+       + 터미널이 노트 아래(수평 분할)에 열리도록 설정
+    5) 볼트에 CLAUDE.md, .claude\settings.json 복사 (이미 있으면 그대로 둠)
+    6) Claude Code, uv 설치 (없을 때만)
+    7) 옵시디언 실행 → Local REST API 키 생성 → Claude 데스크톱 앱에 obsidian 연결 등록
 #>
 param(
-  [string]$VaultPath = (Join-Path $env:USERPROFILE "Desktop\옵시디언\My Note"),
-  [switch]$SkipDownload,
+  [string]$VaultPath = "",
   [switch]$SkipDesktop,
-  [switch]$InstallClaudeCode
+  [switch]$SkipClaudeCode
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,31 +34,57 @@ function WriteJson($path, $obj) {
   $json = $obj | ConvertTo-Json -Depth 20
   [IO.File]::WriteAllText($path, $json, $Utf8NoBom)
 }
+function SetProp($obj, $name, $value) {
+  if ($obj.PSObject.Properties[$name]) { $obj.$name = $value }
+  else { $obj | Add-Member -NotePropertyName $name -NotePropertyValue $value }
+}
+function RefreshPath {
+  $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+              [Environment]::GetEnvironmentVariable("Path", "User") + ";" +
+              (Join-Path $env:USERPROFILE ".local\bin")
+}
 
-Say "`n=== 옵시디언 + Claude 연결 설치 ===`n" Cyan
+Say "`n=== 옵시디언 + Claude 연결 자동 설치 ===`n" Cyan
 
-# ---------------------------------------------------------------- 0. 확인
-$ObsDir = Join-Path $VaultPath ".obsidian"
-if (-not (Test-Path -LiteralPath $ObsDir)) {
-  Say "볼트를 찾지 못했습니다: $VaultPath" Red
-  Say "  -VaultPath ""볼트 폴더 경로"" 로 다시 실행하세요." Yellow
+# ---------------------------------------------------------------- 1. 볼트 찾기
+$candidates = @()
+if ($VaultPath) { $candidates += $VaultPath }
+$candidates += (Join-Path $env:USERPROFILE "Desktop\옵시디언\My Note")
+$candidates += (Join-Path $env:USERPROFILE "OneDrive\Desktop\옵시디언\My Note")
+$candidates += (Join-Path $env:USERPROFILE "OneDrive\바탕 화면\옵시디언\My Note")
+$obsJson = ReadJson (Join-Path $env:APPDATA "obsidian\obsidian.json")
+if ($obsJson -and $obsJson.vaults) {
+  $registered = $obsJson.vaults.PSObject.Properties | ForEach-Object { $_.Value } | Sort-Object -Property ts -Descending
+  foreach ($v in $registered) { if ($v.path -like "*My Note*") { $candidates += $v.path } }
+  foreach ($v in $registered) { $candidates += $v.path }
+}
+$VaultPath = $null
+foreach ($c in $candidates) {
+  if ($c -and (Test-Path -LiteralPath (Join-Path $c ".obsidian"))) { $VaultPath = $c; break }
+}
+if (-not $VaultPath) {
+  Say "옵시디언 볼트를 찾지 못했습니다. 옵시디언에서 볼트를 한 번 연 뒤 다시 실행해 주세요." Red
   exit 1
 }
-Say "볼트: $VaultPath"
+$ObsDir = Join-Path $VaultPath ".obsidian"
+Say "[1/7] 볼트 찾음: $VaultPath" Green
 
-if (Get-Process -Name "Obsidian" -ErrorAction SilentlyContinue) {
-  Say "옵시디언이 실행 중입니다. 설정이 덮어써지지 않도록 옵시디언을 완전히 닫아 주세요." Yellow
-  Read-Host "닫았으면 Enter"
+# ---------------------------------------------------------------- 2. 옵시디언 닫기 + 백업
+$running = Get-Process -Name "Obsidian" -ErrorAction SilentlyContinue
+if ($running) {
+  Say "      옵시디언을 잠시 닫습니다..."
+  $running | ForEach-Object { [void]$_.CloseMainWindow() }
+  Start-Sleep -Seconds 4
+  Get-Process -Name "Obsidian" -ErrorAction SilentlyContinue | Stop-Process -Force
+  Start-Sleep -Seconds 1
 }
-
-# ---------------------------------------------------------------- 1. 백업
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $Backup = Join-Path $VaultPath ".obsidian-backup-$stamp"
 New-Item -ItemType Directory -Path $Backup | Out-Null
 Get-ChildItem -LiteralPath $ObsDir -Filter *.json | Copy-Item -Destination $Backup
-Say "[1/6] 설정 백업: $Backup" Green
+Say "[2/7] 설정 백업: $Backup" Green
 
-# ---------------------------------------------------------------- 2. 코어 플러그인
+# ---------------------------------------------------------------- 3. 코어 플러그인
 $corePath = Join-Path $ObsDir "core-plugins.json"
 $coreWanted = @("file-explorer", "global-search", "bookmarks", "backlink", "outgoing-link", "tag-pane", "outline", "command-palette", "workspaces")
 $core = ReadJson $corePath
@@ -75,15 +94,12 @@ if ($core -is [System.Array]) {
   WriteJson $corePath $list.ToArray()
 } else {
   if ($null -eq $core) { $core = New-Object PSObject }
-  foreach ($id in $coreWanted) {
-    if ($core.PSObject.Properties[$id]) { $core.$id = $true }
-    else { $core | Add-Member -NotePropertyName $id -NotePropertyValue $true }
-  }
+  foreach ($id in $coreWanted) { SetProp $core $id $true }
   WriteJson $corePath $core
 }
-Say "[2/6] 코어 플러그인 켬: 파일 탐색기 / 검색 / 북마크 / 백링크 / 나가는 링크 / 태그 / 개요" Green
+Say "[3/7] 코어 플러그인 켬 (파일 탐색기 / 백링크 등)" Green
 
-# ---------------------------------------------------------------- 3. 커뮤니티 플러그인
+# ---------------------------------------------------------------- 4. 커뮤니티 플러그인
 $PluginsDir = Join-Path $ObsDir "plugins"
 New-Item -ItemType Directory -Force -Path $PluginsDir | Out-Null
 
@@ -93,11 +109,7 @@ $remote = @(
 )
 foreach ($p in $remote) {
   $dest = Join-Path $PluginsDir $p.id
-  if (Test-Path -LiteralPath (Join-Path $dest "main.js")) {
-    Say "      $($p.name): 이미 설치됨"
-    continue
-  }
-  if ($SkipDownload) { Say "      $($p.name): 다운로드 건너뜀 (-SkipDownload)" Yellow; continue }
+  if (Test-Path -LiteralPath (Join-Path $dest "main.js")) { Say "      $($p.name): 이미 설치됨"; continue }
   New-Item -ItemType Directory -Force -Path $dest | Out-Null
   foreach ($f in @("main.js", "manifest.json", "styles.css")) {
     $url = "https://github.com/$($p.repo)/releases/latest/download/$f"
@@ -106,6 +118,13 @@ foreach ($p in $remote) {
   }
   Say "      $($p.name): 설치함"
 }
+
+# 터미널이 노트 아래(수평 분할)에 열리도록
+$termDataPath = Join-Path $PluginsDir "terminal\data.json"
+$termData = ReadJson $termDataPath
+if ($null -eq $termData) { $termData = New-Object PSObject }
+SetProp $termData "newInstanceBehavior" "newHorizontalSplit"
+WriteJson $termDataPath $termData
 
 $ourSrc = Join-Path $Here "plugin\jiseok-claude-layout"
 $ourDest = Join-Path $PluginsDir "jiseok-claude-layout"
@@ -121,77 +140,74 @@ foreach ($id in @("terminal", "obsidian-local-rest-api", "jiseok-claude-layout")
   if (-not $cpList.Contains($id)) { [void]$cpList.Add($id) }
 }
 WriteJson $cpPath $cpList.ToArray()
-Say "[3/6] 커뮤니티 플러그인 켬: Terminal / Local REST API / Claude 작업 레이아웃" Green
+Say "[4/7] 커뮤니티 플러그인 켬 (Terminal / Local REST API / Claude 작업 레이아웃)" Green
 
-# ---------------------------------------------------------------- 4. CLAUDE.md
+# ---------------------------------------------------------------- 5. CLAUDE.md
 $tpl = Join-Path $Here "vault-template"
 $claudeMd = Join-Path $VaultPath "CLAUDE.md"
-if (Test-Path -LiteralPath $claudeMd) { Say "[4/6] CLAUDE.md 이미 있음 → 그대로 둠" Green }
-else { Copy-Item (Join-Path $tpl "CLAUDE.md") $claudeMd; Say "[4/6] CLAUDE.md 만듦 (Claude가 볼트 구조와 규칙을 읽는 파일)" Green }
+if (-not (Test-Path -LiteralPath $claudeMd)) { Copy-Item (Join-Path $tpl "CLAUDE.md") $claudeMd }
 $dotClaude = Join-Path $VaultPath ".claude"
 New-Item -ItemType Directory -Force -Path $dotClaude | Out-Null
 $settingsDest = Join-Path $dotClaude "settings.json"
-if (-not (Test-Path -LiteralPath $settingsDest)) { Copy-Item (Join-Path $tpl ".claude\settings.json") $settingsDest }
+if (-not (Test-Path -LiteralPath $settingsDest)) { Copy-Item (Join-Path $tpl "settings.json") $settingsDest }
+Say "[5/7] CLAUDE.md 준비 (Claude가 볼트 구조와 규칙을 읽는 파일)" Green
 
-# ---------------------------------------------------------------- 5. Claude Code
-$claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
-if ($claudeCmd) {
-  Say "[5/6] Claude Code 설치 확인: $($claudeCmd.Source)" Green
-} elseif ($InstallClaudeCode) {
-  Say "[5/6] Claude Code 설치 중..." Green
-  Invoke-RestMethod https://claude.ai/install.ps1 | Invoke-Expression
+# ---------------------------------------------------------------- 6. Claude Code, uv
+RefreshPath
+if ($SkipClaudeCode) {
+  Say "[6/7] Claude Code 설치 건너뜀" Yellow
 } else {
-  Say "[5/6] Claude Code가 아직 없습니다. 설치하려면 PowerShell에서:" Yellow
-  Say "        irm https://claude.ai/install.ps1 | iex" White
-  Say "      (또는 이 스크립트를 -InstallClaudeCode 옵션으로 다시 실행)" Yellow
+  if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
+    Say "      Claude Code 설치 중..."
+    try { Invoke-RestMethod https://claude.ai/install.ps1 | Invoke-Expression } catch { Say "      Claude Code 설치 실패: $($_.Exception.Message)" Yellow }
+    RefreshPath
+  }
+  if (-not $SkipDesktop -and -not (Get-Command uvx -ErrorAction SilentlyContinue)) {
+    Say "      uv 설치 중 (Claude 앱 연결용)..."
+    try { Invoke-RestMethod https://astral.sh/uv/install.ps1 | Invoke-Expression } catch { Say "      uv 설치 실패: $($_.Exception.Message)" Yellow }
+    RefreshPath
+  }
+  $c = Get-Command claude -ErrorAction SilentlyContinue
+  if ($c) { Say "[6/7] Claude Code 준비됨" Green } else { Say "[6/7] Claude Code를 찾지 못했습니다 (PC를 다시 켠 뒤 확인)" Yellow }
 }
 
-# ---------------------------------------------------------------- 6. Claude 데스크톱 MCP
-if ($SkipDesktop) {
-  Say "[6/6] Claude 데스크톱 연결 건너뜀 (-SkipDesktop)" Yellow
-} else {
-  $restData = ReadJson (Join-Path $PluginsDir "obsidian-local-rest-api\data.json")
-  $apiKey = $null
-  if ($restData -and $restData.apiKey) { $apiKey = [string]$restData.apiKey }
+# ---------------------------------------------------------------- 7. 옵시디언 실행 + Claude 앱 연결
+$enc = [Uri]::EscapeDataString($VaultPath)
+Start-Process "obsidian://open?path=$enc"
+Say "      옵시디언을 엽니다..."
 
+if (-not $SkipDesktop) {
+  $restDataPath = Join-Path $PluginsDir "obsidian-local-rest-api\data.json"
+  $apiKey = $null
+  for ($i = 0; $i -lt 60 -and -not $apiKey; $i++) {
+    Start-Sleep -Seconds 1
+    try { $d = ReadJson $restDataPath; if ($d -and $d.apiKey) { $apiKey = [string]$d.apiKey } } catch {}
+  }
   if (-not $apiKey) {
-    Say "[6/6] Local REST API 키가 아직 없습니다." Yellow
-    Say "      옵시디언을 한 번 켜서 Local REST API 플러그인이 키를 만든 뒤," Yellow
-    Say "      옵시디언을 닫고 이 스크립트를 다시 실행하면 Claude 데스크톱 앱이 연결됩니다." Yellow
+    Say "[7/7] Local REST API 키를 기다리다 멈췄습니다. 옵시디언 설정 → 커뮤니티 플러그인에서 '제한 모드'가 꺼져 있는지 확인 후 다시 실행해 주세요." Yellow
   } else {
     $uvx = Get-Command uvx -ErrorAction SilentlyContinue
     $uvxPath = "uvx"
     if ($uvx) { $uvxPath = $uvx.Source }
-    else {
-      Say "      uv(파이썬 도구)가 없습니다. 설치:  powershell -c ""irm https://astral.sh/uv/install.ps1 | iex""" Yellow
-    }
-
     $cfgDir = Join-Path $env:APPDATA "Claude"
     New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
     $cfgPath = Join-Path $cfgDir "claude_desktop_config.json"
     if (Test-Path -LiteralPath $cfgPath) { Copy-Item $cfgPath "$cfgPath.backup-$stamp" }
     $cfg = ReadJson $cfgPath
     if ($null -eq $cfg) { $cfg = New-Object PSObject }
-    if (-not $cfg.PSObject.Properties["mcpServers"]) {
-      $cfg | Add-Member -NotePropertyName mcpServers -NotePropertyValue (New-Object PSObject)
-    }
+    if (-not $cfg.PSObject.Properties["mcpServers"]) { SetProp $cfg "mcpServers" (New-Object PSObject) }
     $server = [PSCustomObject]@{
       command = $uvxPath
       args    = @("mcp-obsidian")
-      env     = [PSCustomObject]@{
-        OBSIDIAN_API_KEY = $apiKey
-        OBSIDIAN_HOST    = "127.0.0.1"
-        OBSIDIAN_PORT    = "27124"
-      }
+      env     = [PSCustomObject]@{ OBSIDIAN_API_KEY = $apiKey; OBSIDIAN_HOST = "127.0.0.1"; OBSIDIAN_PORT = "27124" }
     }
-    if ($cfg.mcpServers.PSObject.Properties["obsidian"]) { $cfg.mcpServers.obsidian = $server }
-    else { $cfg.mcpServers | Add-Member -NotePropertyName obsidian -NotePropertyValue $server }
+    SetProp $cfg.mcpServers "obsidian" $server
     WriteJson $cfgPath $cfg
-    Say "[6/6] Claude 데스크톱 앱에 'obsidian' 연결 등록: $cfgPath" Green
-    Say "      Claude 데스크톱 앱을 완전히 종료했다가 다시 켜세요." Green
+    $claudeApp = Get-Process -Name "Claude" -ErrorAction SilentlyContinue
+    if ($claudeApp) { Say "      Claude 데스크톱 앱을 종료했다가 다시 켜면 연결이 적용됩니다." Yellow }
+    Say "[7/7] Claude 데스크톱 앱에 옵시디언 연결 등록 완료" Green
   }
 }
 
 Say "`n=== 완료 ===" Cyan
-Say "옵시디언을 열면: 왼쪽 파일 탐색기 · 가운데 노트 · 아래 cmd 터미널 · 오른쪽 백링크"
-Say "아래 터미널에 claude 를 입력하면 볼트 폴더에서 Claude와 작업할 수 있습니다.`n"
+Say "옵시디언 아래쪽 터미널에 claude 를 입력하면 Claude와 작업할 수 있습니다.`n" White

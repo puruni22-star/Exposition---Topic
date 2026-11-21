@@ -21,40 +21,18 @@
 | **① Claude Code** (주 방법) | 옵시디언 아래 cmd 터미널에 `claude` 입력 | 볼트의 노트를 직접 읽고, 찾고, 새 노트를 쓰고 고칩니다. `CLAUDE.md`에 적힌 폴더 구조와 규칙을 따릅니다. |
 | **② Claude 데스크톱 앱** | Claude 앱 대화창 | Local REST API(127.0.0.1:27124)를 통해 볼트를 검색하고 노트를 읽고 씁니다. |
 
-## 설치 (한 번만)
+## 설치 — 딱 한 번, 한 줄이면 끝
 
-1. 이 `obsidian-claude-setup` 폴더를 PC에 내려받습니다.
-   (GitHub에서 **Code → Download ZIP** → 압축 풀기)
-2. **옵시디언을 완전히 닫습니다.**
-3. `install.bat`을 더블클릭합니다.
-   - 볼트 경로 기본값은 `바탕화면\옵시디언\My Note`입니다.
-   - 다른 곳이면 PowerShell에서 아래처럼 실행합니다.
-
-     ```bash
-     powershell -ExecutionPolicy Bypass -File install.ps1 -VaultPath "D:\다른 볼트"
-     ```
-
-4. 옵시디언을 엽니다. 처음 한 번은 **설정 → 커뮤니티 플러그인**에서 "제한 모드 끄기"를 확인하고, 새 플러그인 3개(Terminal, Local REST API, Claude 작업 레이아웃)가 켜져 있는지 봅니다.
-5. Claude Code가 없다면 PowerShell에서 설치합니다.
+1. 키보드에서 **윈도우 키 + R** 을 누릅니다. ("실행" 창이 뜹니다)
+2. 아래 한 줄을 복사해 붙여 넣고 **Enter**.
 
    ```bash
-   irm https://claude.ai/install.ps1 | iex
+   powershell -ep Bypass -c "irm https://raw.githubusercontent.com/puruni22-star/Exposition---Topic/claude/elegant-cerf-fs8ajm/obsidian-claude-setup/setup.ps1|iex"
    ```
 
-6. **Claude 데스크톱 앱도 연결하려면** (②번 방법):
-   - 4번에서 옵시디언을 한 번 켜면 Local REST API가 API 키를 만듭니다.
-   - 옵시디언을 닫고 `install.bat`을 **한 번 더** 실행하면, 그 키로 Claude 앱 설정(`%APPDATA%\Claude\claude_desktop_config.json`)에 `obsidian` 연결이 등록됩니다.
-   - `uvx`가 없다고 나오면 먼저 아래 명령으로 uv를 설치합니다.
+3. 파란 창이 알아서 끝까지 진행합니다. "완료"가 나오면 Enter를 눌러 닫으세요.
 
-     ```bash
-     powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-     ```
-
-   - Claude 데스크톱 앱을 완전히 종료했다가 다시 켭니다.
-
-## 터미널을 아래쪽에 열기 (권장 설정 한 가지)
-
-Terminal 플러그인 설정에서 **새 인스턴스 동작(New instance behavior)**을 **새 수평 분할(New horizontal split)**로 바꾸세요. 그래야 터미널이 사진처럼 노트 **아래**에 열립니다. 한 번 열린 터미널은 옵시디언이 기억해서 다음에도 그 자리에 다시 열립니다.
+설치 프로그램이 알아서 하는 일: 볼트 찾기 → 옵시디언 잠시 닫기 → 설정 백업 → 플러그인 설치 → 터미널 아래쪽 배치 → Claude Code 설치 → 옵시디언 다시 열기 → Claude 데스크톱 앱 연결.
 
 ## 매일 쓰는 법
 
@@ -76,10 +54,10 @@ Terminal 플러그인 설정에서 **새 인스턴스 동작(New instance behavi
 
 | 파일 | 설명 |
 |---|---|
-| `install.bat` / `install.ps1` | 설치 스크립트. 실행 전에 `.obsidian` 설정을 `.obsidian-backup-날짜` 폴더에 백업합니다. |
+| `setup.ps1` / `install.ps1` / `install.bat` | 설치 스크립트 (한 줄 설치용 / 본체 / 더블클릭용). 실행 전에 `.obsidian` 설정을 `.obsidian-backup-날짜` 폴더에 백업합니다. |
 | `plugin/jiseok-claude-layout/` | 직접 만든 옵시디언 플러그인. 시작할 때 레이아웃을 맞추고 Claude 실행 명령을 추가합니다. |
 | `vault-template/CLAUDE.md` | Claude가 볼트에서 일할 때 읽는 안내서(폴더 구조, 회중 정보, 작업 규칙). 볼트에 맞게 고쳐 쓰세요. |
-| `vault-template/.claude/settings.json` | 읽기·검색은 묻지 않고 허용, REST API 키 파일은 읽지 못하게 막음. |
+| `vault-template/settings.json` | 읽기·검색은 묻지 않고 허용, REST API 키 파일은 읽지 못하게 막음. |
 
 ## 되돌리기
 - 볼트의 `.obsidian-backup-날짜` 폴더 안 `.json` 파일을 `.obsidian`에 다시 복사하면 설치 전 설정으로 돌아갑니다.
