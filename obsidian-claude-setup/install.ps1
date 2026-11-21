@@ -39,6 +39,15 @@ Say "`n=== 옵시디언 + Claude 연결 자동 설치 ===`n" Cyan
 # ---------------------------------------------------------------- 1. 볼트 찾기
 $candidates = @()
 if ($VaultPath) { $candidates += $VaultPath }
+# 바탕화면(OneDrive 바탕화면 포함)에서 이름이 "My Note"인 볼트를 직접 찾는다.
+$roots = @([Environment]::GetFolderPath("Desktop"), (Join-Path $env:USERPROFILE "Desktop"), (Join-Path $env:USERPROFILE "OneDrive")) | Select-Object -Unique
+foreach ($r in $roots) {
+  if (-not ($r -and (Test-Path -LiteralPath $r))) { continue }
+  Get-ChildItem -LiteralPath $r -Directory -Recurse -Depth 3 -Force -Filter ".obsidian" -ErrorAction SilentlyContinue |
+    ForEach-Object { $_.Parent.FullName } |
+    Where-Object { (Split-Path -Leaf $_) -eq "My Note" } |
+    ForEach-Object { $candidates += $_ }
+}
 $candidates += (Join-Path $env:USERPROFILE "Desktop\옵시디언\My Note")
 $candidates += (Join-Path $env:USERPROFILE "OneDrive\Desktop\옵시디언\My Note")
 $candidates += (Join-Path $env:USERPROFILE "OneDrive\바탕 화면\옵시디언\My Note")
