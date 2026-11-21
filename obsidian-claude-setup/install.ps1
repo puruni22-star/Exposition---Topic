@@ -1,4 +1,4 @@
-﻿﻿<#
+﻿<#
   옵시디언 + Claude 연결 자동 설치 (Windows PowerShell 5.1 이상)
   아무것도 묻지 않고 끝까지 진행합니다.
 
@@ -31,7 +31,7 @@ function ReadJson($path) {
   return $null
 }
 function WriteJson($path, $obj) {
-  $json = $obj | ConvertTo-Json -Depth 20
+  $json = ConvertTo-Json -InputObject $obj -Depth 20
   [IO.File]::WriteAllText($path, $json, $Utf8NoBom)
 }
 function SetProp($obj, $name, $value) {
