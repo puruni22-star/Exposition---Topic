@@ -1,16 +1,6 @@
-﻿<#
-  옵시디언 + Claude 연결 자동 설치 (Windows PowerShell 5.1 이상)
-  아무것도 묻지 않고 끝까지 진행합니다.
-
-    1) 볼트 자동 찾기 (바탕화면\옵시디언\My Note → 옵시디언에 등록된 볼트)
-    2) 옵시디언 닫기, .obsidian 설정 백업
-    3) 코어 플러그인 켜기 : 파일 탐색기, 검색, 북마크, 백링크, 나가는 링크, 태그, 개요
-    4) 커뮤니티 플러그인 설치·켜기 : Terminal / Local REST API / Claude 작업 레이아웃
-       + 터미널이 노트 아래(수평 분할)에 열리도록 설정
-    5) 볼트에 CLAUDE.md, .claude\settings.json 복사 (이미 있으면 그대로 둠)
-    6) Claude Code, uv 설치 (없을 때만)
-    7) 옵시디언 실행 → Local REST API 키 생성 → Claude 데스크톱 앱에 obsidian 연결 등록
-#>
+﻿# Obsidian + Claude setup (Windows PowerShell 5.1+). Runs to the end without questions.
+# Steps: find vault, close Obsidian, backup, core plugins, community plugins,
+#        CLAUDE.md, Claude Code + uv, open Obsidian, register Claude Desktop MCP.
 param(
   [string]$VaultPath = "",
   [switch]$SkipDesktop,

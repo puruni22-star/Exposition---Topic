@@ -27,7 +27,7 @@
 2. 아래 한 줄을 복사해 붙여 넣고 **Enter**.
 
    ```bash
-   powershell -ep Bypass -c "irm https://raw.githubusercontent.com/puruni22-star/Exposition---Topic/claude/elegant-cerf-fs8ajm/obsidian-claude-setup/setup.ps1|iex"
+   powershell -ep Bypass -c "irm https://raw.githubusercontent.com/puruni22-star/Exposition---Topic/claude/elegant-cerf-fs8ajm/obsidian-claude-setup/start.ps1|iex"
    ```
 
 3. 파란 창이 알아서 끝까지 진행합니다. "완료"가 나오면 Enter를 눌러 닫으세요.
