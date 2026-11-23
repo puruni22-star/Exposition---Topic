@@ -1,0 +1,21 @@
+{
+  "name": "exposition---topic",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/puruni22-star/Exposition---Topic.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/puruni22-star/Exposition---Topic/issues"
+  },
+  "homepage": "https://github.com/puruni22-star/Exposition---Topic#readme",
+  "private": true,
+  "dependencies": {
+    "docx": "^9.16.0"
+  }
+}
