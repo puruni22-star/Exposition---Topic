@@ -13,11 +13,11 @@ const verses = (txt) => txt.split("\n").map((l) => {
   return m ? `<p><span class="vn">${esc(m[1])}</span>${rich(m[2])}</p>` : `<p>${rich(l)}</p>`;
 }).join("\n");
 
-const [outSermon, outGroup, mindmapName] = process.argv.slice(2);
+const [outSermon, outGroup, mindmapName, devotionName] = process.argv.slice(2);
 const sermonName = path.basename(outSermon), groupName = path.basename(outGroup);
 
 function page({ title, kind, current, navItems, body }) {
-  const docs = [["설교문", sermonName], ["소그룹 묵상", groupName], ["마인드맵", mindmapName]];
+  const docs = [["설교문", sermonName], ["소그룹 묵상", groupName], ...(devotionName ? [["매일 묵상", devotionName]] : []), ["마인드맵", mindmapName]];
   return `<!doctype html>
 <html lang="ko">
 <head>
