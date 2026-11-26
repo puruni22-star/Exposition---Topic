@@ -246,7 +246,7 @@ ToggleStartup() {
         A_TrayMenu.Uncheck("윈도우 시작할 때 자동 실행")
     } else {
         target := A_IsCompiled ? A_ScriptFullPath : A_AhkPath
-        args := A_IsCompiled ? "" : '"' A_ScriptFullPath '"'
+        args := (A_IsCompiled ? "" : '"' A_ScriptFullPath '" ') "/norun"
         FileCreateShortcut(target, lnk, A_ScriptDir, args, "원어성경연구 스트롱 코드 사전 연결")
         A_TrayMenu.Check("윈도우 시작할 때 자동 실행")
     }
@@ -267,15 +267,8 @@ StartTargetIfPresent() {
         try {
             Run('"' exe '"', A_ScriptDir, , &pid)
             LaunchedPid := pid
-            SetTimer(WatchTarget, 3000)
         }
     }
-}
-
-; 이 프로그램이 원어성경연구를 켰다면, 그 프로그램을 닫을 때 함께 종료
-WatchTarget() {
-    if (LaunchedPid && !ProcessExist(LaunchedPid))
-        ExitApp()
 }
 
 ShowHelp() {
